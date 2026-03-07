@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { House } from "lucide-react";
 
-import { Separator } from "@/components/ui/separator";
 import {
   Sidebar,
   SidebarContent,
@@ -15,9 +14,9 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarRail,
-  SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { AppSidebarHeader } from "@/components/app-sidebar-header";
+import { AppPageHeader } from "@/components/app-page-header";
 
 const navItems = [
   {
@@ -34,9 +33,9 @@ export default function DashboardLayout({
 }) {
   return (
     <SidebarProvider>
-      <Sidebar>
+      <Sidebar variant="inset" collapsible="icon">
         <SidebarHeader>
-          <span className="px-2 py-1 text-sm font-semibold">Bank App</span>
+          <AppSidebarHeader />
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup>
@@ -60,14 +59,10 @@ export default function DashboardLayout({
         <SidebarRail />
       </Sidebar>
       <SidebarInset>
-        <header className="flex h-12 items-center gap-2 border-b px-4">
-          <SidebarTrigger />
-          <Separator orientation="vertical" className="h-4" />
-          <div className="ml-auto">
-            <ThemeToggle />
-          </div>
-        </header>
-        <main className="p-6">{children}</main>
+        <AppPageHeader />
+        <main className="p-4 md:p-6">
+          {children}
+        </main>
       </SidebarInset>
     </SidebarProvider>
   );
