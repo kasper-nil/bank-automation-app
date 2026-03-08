@@ -39,7 +39,7 @@ export default function DashboardLayout({
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup>
-            <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+            <SidebarGroupLabel>Home</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {navItems.map((item) => (
@@ -60,9 +60,7 @@ export default function DashboardLayout({
       </Sidebar>
       <SidebarInset>
         <AppPageHeader />
-        <main className="p-4 md:p-6">
-          {children}
-        </main>
+        <main className="p-4 md:p-6">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );
