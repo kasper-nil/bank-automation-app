@@ -16,6 +16,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { AppSidebarHeader } from "@/components/app-sidebar-header";
+import { AppSidebarFooter } from "@/components/app-sidebar-footer";
 import { AppPageHeader } from "@/components/app-page-header";
 
 const navItems = [
@@ -56,6 +57,7 @@ export default function DashboardLayout({
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
+        <AppSidebarFooter />
         <SidebarRail />
       </Sidebar>
       <SidebarInset>
