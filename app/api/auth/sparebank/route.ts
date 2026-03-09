@@ -32,18 +32,14 @@ export async function GET(request: NextRequest) {
   const tokenData = await tokenResponse.json();
   const tokenWithTimestamp = { ...tokenData, issued_at: Date.now() };
 
-  const html = `<!DOCTYPE html>
-<html>
-  <head><title>Authenticating...</title></head>
-  <body>
-    <script>
-      localStorage.setItem("sparebank_token", JSON.stringify(${JSON.stringify(tokenWithTimestamp)}));
-      window.location.replace("/dashboard");
-    </script>
-  </body>
-</html>`;
+  const cookieValue = JSON.stringify(tokenWithTimestamp);
+  const maxAge = 365 * 24 * 60 * 60; // 365 days — matches refresh_token lifetime
 
-  return new Response(html, {
-    headers: { "Content-Type": "text/html" },
+  return new Response(null, {
+    status: 307,
+    headers: {
+      Location: "/dashboard",
+      "Set-Cookie": `sparebank_token=${encodeURIComponent(cookieValue)}; HttpOnly; Path=/; Max-Age=${maxAge}; SameSite=Lax`,
+    },
   });
 }
