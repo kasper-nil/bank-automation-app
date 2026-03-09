@@ -75,19 +75,22 @@ All styling must use Tailwind utility classes that map to the design tokens defi
 
 ## SpareBank1 OAuth Flow
 
-Authentication uses the SpareBank1 OAuth 2.0 authorization code flow. The relevant environment variables are in `.env.local`.
+Authentication uses the SpareBank1 OAuth 2.0 authorization code flow. The token is stored in an `HttpOnly` cookie (`sparebank_token`) and never exposed to client-side JavaScript. Route protection is handled by `middleware.ts`. The relevant environment variables are in `.env.local`.
 
 ### Relevant files
 
-| File                                      | Purpose                                                             |
-| ----------------------------------------- | ------------------------------------------------------------------- |
-| `app/page.tsx`                            | Authenticate button — redirects to SpareBank1 authorize URL         |
-| `lib/api/sparebank/authorize.ts`          | Builds the authorize URL                                            |
-| `lib/api/sparebank/token.ts`              | Token storage, expiry check, and refresh logic                      |
-| `lib/api/sparebank/index.ts`              | Re-exports `getAuthorizeUrl`, `getToken`, `SparebankToken`          |
-| `app/api/auth/sparebank/route.ts`         | OAuth callback — exchanges code for token, stores in `localStorage` |
-| `app/api/auth/sparebank/refresh/route.ts` | Refreshes an expired access token using the refresh token           |
-| `components/auth-guard.tsx`               | Wraps the dashboard — redirects to `/` if no valid token            |
+| File                                      | Purpose                                                                                      |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `app/page.tsx`                            | Authenticate button — redirects to SpareBank1 authorize URL                                  |
+| `lib/api/sparebank/authorize.ts`          | Builds the authorize URL                                                                     |
+| `lib/api/sparebank/token.server.ts`       | `getSparebankToken()` — reads the cookie via `next/headers` (server-side only)               |
+| `lib/api/sparebank/token.client.ts`       | `fetchSparebankToken()` — fetches access token from the API (client-side only)               |
+| `lib/api/sparebank/middleware.ts`         | `getSparebankToken(request)` — reads the cookie from `NextRequest` (middleware only)         |
+| `lib/api/sparebank/index.ts`              | Re-exports `getAuthorizeUrl` and `SparebankToken` type                                       |
+| `app/api/auth/sparebank/route.ts`         | OAuth callback — exchanges code for token, sets `HttpOnly` cookie, redirects to `/dashboard` |
+| `app/api/auth/sparebank/token/route.ts`   | Returns a valid access token; refreshes automatically if expired                             |
+| `app/api/auth/sparebank/refresh/route.ts` | Low-level token refresh endpoint (proxies to SpareBank1)                                     |
+| `middleware.ts`                           | Protects `/dashboard/*` — redirects to `/` if cookie is missing                              |
 
 ### Step 1 — Authorize (get a code)
 
@@ -111,23 +114,36 @@ SpareBank1 authenticates the user via BankID and redirects back to the `redirect
 - `access_token` — valid for **10 minutes**
 - `refresh_token` — valid for **365 days**
 
-The full response plus an `issued_at` timestamp (ms) is stored in `localStorage["sparebank_token"]` via an inline script, then the user is redirected to `/dashboard`.
+The full response plus an `issued_at` timestamp (ms) is stored in an `HttpOnly` cookie (`sparebank_token`), then the user is `307` redirected to `/dashboard`.
 
-### Step 3 — Auth guard
+### Step 3 — Route protection (middleware)
 
-`components/auth-guard.tsx` wraps the entire dashboard layout. On every mount it calls `getToken()` — if no valid token is returned, it redirects the user to `/` to re-authenticate.
+`middleware.ts` intercepts all requests to `/dashboard/*`. It calls `getSparebankToken(request)` from `@/lib/api/sparebank/middleware`, which reads and parses the `sparebank_token` cookie directly from the request. If no cookie is present, the user is redirected to `/`. If present, the request proceeds.
 
 ### Step 4 — Use the token
 
-Call `getToken()` from `@/lib/api/sparebank` in any client-side code that needs to make an authenticated request. It reads `localStorage["sparebank_token"]`, checks expiry using `issued_at + (expires_in * 1000)`, transparently refreshes if needed, and returns the `access_token`.
+Choose the right helper based on context:
+
+**Server Components, Route Handlers, Server Actions:**
 
 ```ts
-import { getToken } from "@/lib/api/sparebank";
+import { getSparebankToken } from "@/lib/api/sparebank/token.server";
 
-const token = await getToken();
-// use as: Authorization: Bearer ${token}
+const token = await getSparebankToken();
+// use token.access_token as: Authorization: Bearer ${token.access_token}
 ```
+
+**Client Components:**
+
+```ts
+import { fetchSparebankToken } from "@/lib/api/sparebank/token.client";
+
+const accessToken = await fetchSparebankToken();
+// use as: Authorization: Bearer ${accessToken}
+```
+
+`fetchSparebankToken()` calls `GET /api/auth/sparebank/token`, which reads the cookie server-side, refreshes the token if expired, and returns the `access_token` string. The `client-only` and `server-only` guards will throw a build-time error if either helper is imported in the wrong context.
 
 ### Step 5 — Refresh
 
-`app/api/auth/sparebank/refresh/route.ts` (POST) accepts `{ refresh_token }` in the JSON body and exchanges it for a new token pair using `grant_type=refresh_token`. The client secret is kept server-side only. `lib/api/sparebank/token.ts` calls this route automatically when the access token is expired and saves the new token back to `localStorage` with a fresh `issued_at`.
+`app/api/auth/sparebank/token/route.ts` (GET) handles refresh automatically: if the stored token is expired, it exchanges the `refresh_token` with SpareBank1, updates the `HttpOnly` cookie, and returns the new `access_token`. The client secret is kept server-side only.
