@@ -26,7 +26,12 @@ function formatAccountNumber(raw: string): string {
   return raw;
 }
 
-export function AccountSelect() {
+type AccountSelectProps = {
+  value?: string;
+  onValueChange?: (value: string) => void;
+};
+
+export function AccountSelect({ value, onValueChange }: AccountSelectProps) {
   const [accounts, setAccounts] = useState<Account[]>([]);
 
   useEffect(() => {
@@ -45,7 +50,7 @@ export function AccountSelect() {
   const hasAccounts = accounts.length > 0;
 
   return (
-    <Select disabled={!hasAccounts}>
+    <Select disabled={!hasAccounts} value={value} onValueChange={onValueChange}>
       <SelectTrigger className="w-full">
         <SelectValue
           placeholder={

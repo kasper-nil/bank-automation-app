@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/card";
 import { FetchAccountsButton } from "./_components/fetch-accounts-button";
 import { FetchTransactionsButton } from "./_components/fetch-transactions-button";
-import { AccountSelect } from "./_components/account-select";
+import { AccountDashboard } from "./_components/account-dashboard";
 
 export default function DashboardPage() {
   return (
@@ -25,7 +25,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <AccountSelect />
+      <AccountDashboard />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
