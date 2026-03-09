@@ -4,3 +4,10 @@ export { getAuthorizeUrl } from "./authorize";
 //   Client: import { fetchSparebankToken } from "@/lib/api/sparebank/token.client"
 //   Middleware: import { getSparebankToken } from "@/lib/api/sparebank/middleware"
 export type { SparebankToken } from "./token.server";
+export { getAccounts } from "./accounts";
+export type {
+  AccountsResponse,
+  Account,
+  AccountOwner,
+  AccountProperties,
+} from "./accounts";

@@ -5,16 +5,23 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { FetchAccountsButton } from "./_components/fetch-accounts-button";
+import { AccountSelect } from "./_components/account-select";
 
 export default function DashboardPage() {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Welcome back. Here&apos;s an overview of your finances.
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Dashboard</h1>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Welcome back. Here&apos;s an overview of your finances.
+          </p>
+        </div>
+        <FetchAccountsButton />
       </div>
+
+      <AccountSelect />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
