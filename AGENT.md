@@ -77,9 +77,21 @@ All styling must use Tailwind utility classes that map to the design tokens defi
 
 Authentication uses the SpareBank1 OAuth 2.0 authorization code flow. The relevant environment variables are in `.env.local`.
 
+### Relevant files
+
+| File                                      | Purpose                                                             |
+| ----------------------------------------- | ------------------------------------------------------------------- |
+| `app/page.tsx`                            | Authenticate button — redirects to SpareBank1 authorize URL         |
+| `lib/api/sparebank/authorize.ts`          | Builds the authorize URL                                            |
+| `lib/api/sparebank/token.ts`              | Token storage, expiry check, and refresh logic                      |
+| `lib/api/sparebank/index.ts`              | Re-exports `getAuthorizeUrl`, `getToken`, `SparebankToken`          |
+| `app/api/auth/sparebank/route.ts`         | OAuth callback — exchanges code for token, stores in `localStorage` |
+| `app/api/auth/sparebank/refresh/route.ts` | Refreshes an expired access token using the refresh token           |
+| `components/auth-guard.tsx`               | Wraps the dashboard — redirects to `/` if no valid token            |
+
 ### Step 1 — Authorize (get a code)
 
-The user clicks Authenticate in `app/page.tsx`, which navigates the browser to:
+The user clicks Authenticate in `app/page.tsx`, which calls `getAuthorizeUrl()` from `@/lib/api/sparebank` and navigates the browser to:
 
 ```
 https://api.sparebank1.no/oauth/authorize
@@ -101,17 +113,21 @@ SpareBank1 authenticates the user via BankID and redirects back to the `redirect
 
 The full response plus an `issued_at` timestamp (ms) is stored in `localStorage["sparebank_token"]` via an inline script, then the user is redirected to `/dashboard`.
 
-### Step 3 — Use the token
+### Step 3 — Auth guard
 
-Call `getToken()` from `@/lib/auth` anywhere in client-side code that needs to make an authenticated request. It reads `localStorage["sparebank_token"]`, checks whether the token is expired using `issued_at + (expires_in * 1000)`, and transparently refreshes if needed before returning the `access_token`.
+`components/auth-guard.tsx` wraps the entire dashboard layout. On every mount it calls `getToken()` — if no valid token is returned, it redirects the user to `/` to re-authenticate.
+
+### Step 4 — Use the token
+
+Call `getToken()` from `@/lib/api/sparebank` in any client-side code that needs to make an authenticated request. It reads `localStorage["sparebank_token"]`, checks expiry using `issued_at + (expires_in * 1000)`, transparently refreshes if needed, and returns the `access_token`.
 
 ```ts
-import { getToken } from "@/lib/auth";
+import { getToken } from "@/lib/api/sparebank";
 
 const token = await getToken();
 // use as: Authorization: Bearer ${token}
 ```
 
-### Step 4 — Refresh
+### Step 5 — Refresh
 
-`app/api/auth/sparebank/refresh/route.ts` (POST) accepts `{ refresh_token }` in the JSON body and exchanges it for a new token pair using `grant_type=refresh_token`. The client secret is kept server-side only. `lib/auth.ts` calls this route automatically when the access token is expired, and saves the new token back to `localStorage` with a fresh `issued_at`.
+`app/api/auth/sparebank/refresh/route.ts` (POST) accepts `{ refresh_token }` in the JSON body and exchanges it for a new token pair using `grant_type=refresh_token`. The client secret is kept server-side only. `lib/api/sparebank/token.ts` calls this route automatically when the access token is expired and saves the new token back to `localStorage` with a fresh `issued_at`.
