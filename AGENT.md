@@ -72,3 +72,46 @@ All styling must use Tailwind utility classes that map to the design tokens defi
 // Wrong
 <div style={{ backgroundColor: "#1a1a1a" }} className="text-[#fff]">
 ```
+
+## SpareBank1 OAuth Flow
+
+Authentication uses the SpareBank1 OAuth 2.0 authorization code flow. The relevant environment variables are in `.env.local`.
+
+### Step 1 — Authorize (get a code)
+
+The user clicks Authenticate in `app/page.tsx`, which navigates the browser to:
+
+```
+https://api.sparebank1.no/oauth/authorize
+  ?client_id=NEXT_PUBLIC_SPAREBANK_CLIENT_ID
+  &state=NEXT_PUBLIC_SPAREBANK_STATE
+  &redirect_uri=NEXT_PUBLIC_SPAREBANK_REDIRECT_URL
+  &finInst=fid-smn
+  &response_type=code
+```
+
+SpareBank1 authenticates the user via BankID and redirects back to the `redirect_uri` with `?code=CODE&state=STATE`. The code is valid for **2 minutes** and can only be used once.
+
+### Step 2 — Exchange code for token
+
+`app/api/auth/sparebank/route.ts` (GET) receives the OAuth callback. It POSTs to `https://api.sparebank1.no/oauth/token` with `client_id`, `client_secret`, `code`, `grant_type=authorization_code`, `state`, and `redirect_uri`. On success, the response contains:
+
+- `access_token` — valid for **10 minutes**
+- `refresh_token` — valid for **365 days**
+
+The full response plus an `issued_at` timestamp (ms) is stored in `localStorage["sparebank_token"]` via an inline script, then the user is redirected to `/dashboard`.
+
+### Step 3 — Use the token
+
+Call `getToken()` from `@/lib/auth` anywhere in client-side code that needs to make an authenticated request. It reads `localStorage["sparebank_token"]`, checks whether the token is expired using `issued_at + (expires_in * 1000)`, and transparently refreshes if needed before returning the `access_token`.
+
+```ts
+import { getToken } from "@/lib/auth";
+
+const token = await getToken();
+// use as: Authorization: Bearer ${token}
+```
+
+### Step 4 — Refresh
+
+`app/api/auth/sparebank/refresh/route.ts` (POST) accepts `{ refresh_token }` in the JSON body and exchanges it for a new token pair using `grant_type=refresh_token`. The client secret is kept server-side only. `lib/auth.ts` calls this route automatically when the access token is expired, and saves the new token back to `localStorage` with a fresh `issued_at`.
