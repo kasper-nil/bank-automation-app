@@ -1,10 +1,16 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
-import Image from "next/image";
+import { getAuthorizeUrl } from "@/lib/api/sparebank";
 
 export default function Home() {
+  function handleAuthenticate() {
+    window.location.href = getAuthorizeUrl();
+  }
+
   return (
     <div>
-      <Button>Authenticate</Button>
+      <Button onClick={handleAuthenticate}>Authenticate</Button>
     </div>
   );
 }
