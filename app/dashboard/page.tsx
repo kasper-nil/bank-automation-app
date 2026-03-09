@@ -6,6 +6,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { FetchAccountsButton } from "./_components/fetch-accounts-button";
+import { FetchTransactionsButton } from "./_components/fetch-transactions-button";
 import { AccountSelect } from "./_components/account-select";
 
 export default function DashboardPage() {
@@ -18,7 +19,10 @@ export default function DashboardPage() {
             Welcome back. Here&apos;s an overview of your finances.
           </p>
         </div>
-        <FetchAccountsButton />
+        <div className="flex items-center gap-3">
+          <FetchAccountsButton />
+          <FetchTransactionsButton />
+        </div>
       </div>
 
       <AccountSelect />
