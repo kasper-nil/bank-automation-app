@@ -1,5 +1,76 @@
 # Agent Guidelines
 
+## Architecture Overview
+
+This is a **Next.js App Router** application (TypeScript) that acts as a stateless frontend proxy to the SpareBank1 bank API. There is no database or ORM — all fetched data is persisted to browser `localStorage`. There is no test framework.
+
+**Package manager:** pnpm
+
+### Key commands
+
+| Command             | Description              |
+| ------------------- | ------------------------ |
+| `pnpm dev`          | Start development server |
+| `pnpm build`        | Production build         |
+| `pnpm lint`         | Run ESLint               |
+| `pnpm format`       | Prettier write           |
+| `pnpm format:check` | Prettier check           |
+
+There is no `test` script.
+
+### Directory structure
+
+```
+app/
+  globals.css               # Tailwind v4 config + all CSS design tokens (no tailwind.config.ts)
+  layout.tsx                # Root layout — JetBrains Mono font, ThemeProvider, Toaster
+  page.tsx                  # Landing page — Authenticate button
+  api/auth/sparebank/
+    route.ts                # OAuth callback → sets HttpOnly cookie
+    token/route.ts          # Returns valid access_token, auto-refreshes if expired
+    refresh/route.ts        # Low-level token refresh proxy
+  dashboard/
+    layout.tsx              # Dashboard shell with collapsible sidebar
+    page.tsx                # Main dashboard
+    _components/            # Route-private components (colocated, excluded from router)
+
+components/
+  ui/                       # shadcn CLI-generated — never hand-edit
+  *.tsx                     # App-level shared components
+
+hooks/                      # Custom React hooks
+
+lib/
+  utils.ts                  # cn() utility — shadcn-generated, never edit
+  api/sparebank/            # Full SpareBank1 API layer (see OAuth Flow section)
+```
+
+### Data layer
+
+Fetched data is stored in `localStorage` — there is no server-side persistence:
+
+- `sparebank_accounts` — `AccountsResponse` JSON (`lib/api/sparebank/accounts.ts`)
+- `sparebank_transactions` — `TransactionsByAccount` JSON keyed by account key (`lib/api/sparebank/transactions.ts`)
+
+Historical balance displayed in the chart is computed client-side by walking backwards from the current balance using transaction amounts.
+
+### Server vs. Client Component conventions
+
+- Files are Server Components by default; add `"use client"` only when needed (event handlers, hooks, browser APIs).
+- Route-private components live in `_components/` inside the route directory (Next.js convention).
+- **Named exports everywhere** — only Next.js pages and layouts use default exports (required by the framework).
+- No global state management library — state is local (`useState`/`useEffect`) with `localStorage` for cross-session persistence.
+
+### Import aliases (from `tsconfig.json`)
+
+```ts
+@/components  →  components/
+@/lib         →  lib/
+@/hooks       →  hooks/
+```
+
+---
+
 ## shadcn Setup
 
 This project uses **shadcn v4** with the `new-york` style variant, built on **Next.js App Router** with React Server Components (RSC) enabled. The package manager is **pnpm** and the project is written in **TypeScript**.
