@@ -11,7 +11,7 @@ interface SparebankTokenResponse {
   access_token: string;
   token_type: string;
   expires_in: number;
-  refresh_token: string;
+  refresh_token?: string;
   state?: number;
 }
 
@@ -153,6 +153,13 @@ export const sparebankPlugin = () => {
             const tokens =
               (await tokenResponse.json()) as SparebankTokenResponse;
 
+            if (!tokens.refresh_token) {
+              return ctx.json(
+                { error: "Missing refresh token from Sparebank" },
+                { status: 400 },
+              );
+            }
+
             // Calculate expiry time
             const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
 
@@ -255,9 +262,10 @@ export const sparebankPlugin = () => {
               );
             }
 
-            // Check if token is expired
+            // Check if token is expired (with a buffer to avoid edge cases)
             const expiresAt = new Date(connection.expiresAt);
-            if (expiresAt > new Date()) {
+            const refreshBufferMs = 5 * 60 * 1000;
+            if (expiresAt.getTime() - refreshBufferMs > Date.now()) {
               // Token is still valid, decrypt and return
               const accessToken = decryptToken(connection.accessToken);
               return ctx.json({
@@ -298,7 +306,9 @@ export const sparebankPlugin = () => {
 
             // Encrypt and update
             const encryptedAccessToken = encryptToken(tokens.access_token);
-            const encryptedRefreshToken = encryptToken(tokens.refresh_token);
+            const encryptedRefreshToken = tokens.refresh_token
+              ? encryptToken(tokens.refresh_token)
+              : connection.refreshToken;
 
             await (adapter as any).update({
               model: "sparebankConnection",

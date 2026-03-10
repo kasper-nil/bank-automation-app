@@ -9,5 +9,8 @@ export const sparebankPluginClient = () => {
   return {
     id: "sparebank-connect",
     $InferServerPlugin: {} as ReturnType<typeof sparebankPlugin>,
+    pathMethods: {
+      "/sparebank-connect/disconnect": "POST",
+    },
   } satisfies BetterAuthClientPlugin;
 };

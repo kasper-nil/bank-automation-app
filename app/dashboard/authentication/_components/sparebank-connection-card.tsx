@@ -13,8 +13,8 @@ import { authClient } from "@/auth/auth-client";
 
 interface ConnectionStatus {
   connected: boolean;
-  expiresAt?: Date | string;
-  createdAt?: Date | string;
+  expiresAt?: Date | string | null;
+  createdAt?: Date | string | null;
 }
 
 export function SparebankConnectionCard() {
@@ -31,9 +31,15 @@ export function SparebankConnectionCard() {
   async function checkStatus() {
     try {
       setLoading(true);
-      const response = await (authClient.sparebankConnect as any).status();
-      if (response.data) {
-        setStatus(response.data);
+      const response = await authClient.sparebankConnect.status();
+      const data = response.data;
+      if (data && "connected" in data) {
+        const createdAt = "createdAt" in data ? (data.createdAt ?? null) : null;
+        setStatus({
+          connected: data.connected,
+          expiresAt: data.expiresAt ?? null,
+          createdAt,
+        });
       }
       setError(null);
     } catch (err) {
@@ -48,13 +54,13 @@ export function SparebankConnectionCard() {
     try {
       setIsConnecting(true);
       setError(null);
-      const response = await (authClient.sparebankConnect as any).authorize();
-      if (response.data?.authorizeUrl) {
-        // Redirect to Sparebank OAuth
-        window.location.href = response.data.authorizeUrl;
-      } else {
+      const response = await authClient.sparebankConnect.authorize();
+      const data = response.data;
+      if (!data || !("authorizeUrl" in data)) {
         throw new Error("Failed to get authorize URL");
       }
+      // Redirect to Sparebank OAuth
+      window.location.href = data.authorizeUrl;
     } catch (err) {
       setError("Failed to start connection process");
       console.error(err);
@@ -65,9 +71,14 @@ export function SparebankConnectionCard() {
   async function handleDisconnect() {
     try {
       setLoading(true);
-      const response = await (authClient.sparebankConnect as any).disconnect();
-      if (response.data?.success) {
-        setStatus({ connected: false });
+      const response = await authClient.sparebankConnect.disconnect();
+      const data = response.data;
+      if (data && "success" in data && data.success) {
+        setStatus({
+          connected: false,
+          expiresAt: undefined,
+          createdAt: undefined,
+        });
         setError(null);
       }
     } catch (err) {
