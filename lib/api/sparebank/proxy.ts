@@ -5,7 +5,7 @@ const COOKIE_NAME = "sparebank_token";
 
 /**
  * Returns the stored SpareBank token from the request cookies.
- * For use in middleware only — middleware runs on the edge and cannot
+ * For use in proxy only — proxy runs on the edge and cannot
  * use next/headers, so the token is read directly from the request.
  */
 export function getSparebankToken(request: NextRequest): SparebankToken | null {

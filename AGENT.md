@@ -146,7 +146,7 @@ All styling must use Tailwind utility classes that map to the design tokens defi
 
 ## SpareBank1 OAuth Flow
 
-Authentication uses the SpareBank1 OAuth 2.0 authorization code flow. The token is stored in an `HttpOnly` cookie (`sparebank_token`) and never exposed to client-side JavaScript. Route protection is handled by `middleware.ts`. The relevant environment variables are in `.env.local`.
+Authentication uses the SpareBank1 OAuth 2.0 authorization code flow. The token is stored in an `HttpOnly` cookie (`sparebank_token`) and never exposed to client-side JavaScript. Route protection is handled by `proxy.ts`. The relevant environment variables are in `.env.local`.
 
 ### Relevant files
 
@@ -156,12 +156,12 @@ Authentication uses the SpareBank1 OAuth 2.0 authorization code flow. The token 
 | `lib/api/sparebank/authorize.ts`          | Builds the authorize URL                                                                     |
 | `lib/api/sparebank/token.server.ts`       | `getSparebankToken()` — reads the cookie via `next/headers` (server-side only)               |
 | `lib/api/sparebank/token.client.ts`       | `fetchSparebankToken()` — fetches access token from the API (client-side only)               |
-| `lib/api/sparebank/middleware.ts`         | `getSparebankToken(request)` — reads the cookie from `NextRequest` (middleware only)         |
+| `lib/api/sparebank/proxy.ts`              | `getSparebankToken(request)` — reads the cookie from `NextRequest` (proxy only)              |
 | `lib/api/sparebank/index.ts`              | Re-exports `getAuthorizeUrl` and `SparebankToken` type                                       |
 | `app/api/auth/sparebank/route.ts`         | OAuth callback — exchanges code for token, sets `HttpOnly` cookie, redirects to `/dashboard` |
 | `app/api/auth/sparebank/token/route.ts`   | Returns a valid access token; refreshes automatically if expired                             |
 | `app/api/auth/sparebank/refresh/route.ts` | Low-level token refresh endpoint (proxies to SpareBank1)                                     |
-| `middleware.ts`                           | Protects `/dashboard/*` — redirects to `/` if cookie is missing                              |
+| `proxy.ts`                                | Protects `/dashboard/*` — redirects to `/` if cookie is missing                              |
 
 ### Step 1 — Authorize (get a code)
 
@@ -187,9 +187,9 @@ SpareBank1 authenticates the user via BankID and redirects back to the `redirect
 
 The full response plus an `issued_at` timestamp (ms) is stored in an `HttpOnly` cookie (`sparebank_token`), then the user is `307` redirected to `/dashboard`.
 
-### Step 3 — Route protection (middleware)
+### Step 3 — Route protection (proxy)
 
-`middleware.ts` intercepts all requests to `/dashboard/*`. It calls `getSparebankToken(request)` from `@/lib/api/sparebank/middleware`, which reads and parses the `sparebank_token` cookie directly from the request. If no cookie is present, the user is redirected to `/`. If present, the request proceeds.
+`proxy.ts` intercepts all requests to `/dashboard/*`. It calls `getSparebankToken(request)` from `@/lib/api/sparebank/proxy`, which reads and parses the `sparebank_token` cookie directly from the request. If no cookie is present, the user is redirected to `/`. If present, the request proceeds.
 
 ### Step 4 — Use the token
 

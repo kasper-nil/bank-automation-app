@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSparebankToken } from "@/lib/api/sparebank/middleware";
+import { getSparebankToken } from "@/lib/api/sparebank/proxy";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const token = getSparebankToken(request);
 
   if (!token) {
