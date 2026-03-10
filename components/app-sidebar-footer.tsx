@@ -1,14 +1,17 @@
 "use client";
 
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Monitor, Moon, Sun, LogOut } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
   SidebarFooter,
@@ -33,8 +36,21 @@ function ThemeIcon({ theme }: { theme: string | undefined }) {
 export function AppSidebarFooter() {
   const { theme, setTheme } = useTheme();
   const { state } = useSidebar();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const { data: session } = authClient.useSession();
+
   useEffect(() => setMounted(true), []);
+
+  const handleSignOut = async () => {
+    await authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          router.push("/");
+        },
+      },
+    });
+  };
 
   const icon = mounted ? (
     <ThemeIcon theme={theme} />
@@ -46,6 +62,46 @@ export function AppSidebarFooter() {
   return (
     <SidebarFooter>
       <SidebarMenu>
+        {session?.user && (
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton
+                  tooltip="User menu"
+                  className="data-[state=open]:bg-sidebar-accent"
+                >
+                  {session.user.image ? (
+                    <img
+                      src={session.user.image}
+                      alt={session.user.name || "User"}
+                      className="size-4 rounded-full"
+                    />
+                  ) : (
+                    <div className="size-4 rounded-full bg-muted" />
+                  )}
+                  <span className="truncate">{session.user.name}</span>
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                side="top"
+                align={state === "collapsed" ? "center" : "start"}
+                className="min-w-48"
+              >
+                <div className="px-2 py-1.5 text-sm">
+                  <p className="font-medium truncate">{session.user.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {session.user.email}
+                  </p>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut} className="gap-2">
+                  <LogOut className="size-4" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+        )}
         <SidebarMenuItem>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

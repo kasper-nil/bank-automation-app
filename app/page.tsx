@@ -1,16 +1,22 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { getAuthorizeUrl } from "@/lib/api/sparebank";
+import { authClient } from "@/lib/auth-client";
 
 export default function Home() {
-  function handleAuthenticate() {
-    window.location.href = getAuthorizeUrl();
+  const router = useRouter();
+
+  async function handleSignIn() {
+    await authClient.signIn.social({
+      provider: "google",
+      callbackURL: "/dashboard",
+    });
   }
 
   return (
     <div>
-      <Button onClick={handleAuthenticate}>Authenticate</Button>
+      <Button onClick={handleSignIn}>Sign in with Google</Button>
     </div>
   );
 }
