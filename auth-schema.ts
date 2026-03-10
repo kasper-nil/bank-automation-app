@@ -22,7 +22,6 @@ export const session = pgTable(
     token: text("token").notNull().unique(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
-      .defaultNow()
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
     ipAddress: text("ip_address"),
@@ -92,34 +91,3 @@ export const accountRelations = relations(account, ({ one }) => ({
     references: [user.id],
   }),
 }));
-
-export const sparebankConnection = pgTable(
-  "sparebank_connection",
-  {
-    id: text("id").primaryKey(),
-    userId: text("user_id")
-      .notNull()
-      .unique()
-      .references(() => user.id, { onDelete: "cascade" }),
-    accessToken: text("access_token").notNull(),
-    refreshToken: text("refresh_token").notNull(),
-    tokenType: text("token_type").notNull(),
-    expiresAt: timestamp("expires_at").notNull(),
-    scope: text("scope"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at")
-      .$onUpdate(() => /* @__PURE__ */ new Date())
-      .notNull(),
-  },
-  (table) => [index("sparebank_connection_userId_idx").on(table.userId)],
-);
-
-export const sparebankConnectionRelations = relations(
-  sparebankConnection,
-  ({ one }) => ({
-    user: one(user, {
-      fields: [sparebankConnection.userId],
-      references: [user.id],
-    }),
-  }),
-);

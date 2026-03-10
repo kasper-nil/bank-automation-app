@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { House } from "lucide-react";
+import { House, Lock } from "lucide-react";
 
 import {
   Sidebar,
@@ -24,6 +24,11 @@ const navItems = [
     label: "Dashboard",
     href: "/dashboard",
     icon: House,
+  },
+  {
+    label: "Authentication",
+    href: "/dashboard/authentication",
+    icon: Lock,
   },
 ];
 

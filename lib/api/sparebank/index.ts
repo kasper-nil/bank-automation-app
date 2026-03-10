@@ -1,8 +1,6 @@
-export { getAuthorizeUrl } from "./authorize";
 // Token helpers are environment-specific — import directly:
 //   Server: import { getSparebankToken } from "@/lib/api/sparebank/token.server"
 //   Client: import { fetchSparebankToken } from "@/lib/api/sparebank/token.client"
-//   Proxy: import { getSparebankToken } from "@/lib/api/sparebank/proxy"
 export type { SparebankToken } from "./token.server";
 export { getAccounts } from "./accounts";
 export type {

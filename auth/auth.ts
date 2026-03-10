@@ -2,6 +2,7 @@ import { db } from "@/db";
 import * as schema from "@/db/auth-schema";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { sparebankPlugin } from "@/auth/plugins/sparebank";
 
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
@@ -16,4 +17,5 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     },
   },
+  plugins: [sparebankPlugin()],
 });

@@ -4,7 +4,7 @@ import { Monitor, Moon, Sun, LogOut } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { authClient } from "@/lib/auth-client";
+import { authClient } from "@/auth/auth-client";
 
 import {
   DropdownMenu,
