@@ -1,5 +1,61 @@
-const BASE_URL =
-  "https://api.sparebank1.no/personal/banking/transactions/classified";
+// Accounts
+
+export type AccountOwner = {
+  name: string;
+  firstName: string;
+  lastName: string;
+  type: string;
+  age: number;
+  customerKey: string;
+  ssnKey: string;
+};
+
+export type AccountProperties = {
+  isTransferFromEnabled: boolean;
+  isTransferToEnabled: boolean;
+  isPaymentFromEnabled: boolean;
+  isAllowedInAvtaleGiro: boolean;
+  hasAccess: boolean;
+  isBalancePreferred: boolean;
+  isFlexiLoan: boolean;
+  isCodebitorLoan: boolean;
+  isSecurityBalance: boolean;
+  isAksjesparekonto: boolean;
+  isSavingsAccount: boolean;
+  isBonusAccount: boolean;
+  userHasRightOfDisposal: boolean;
+  userHasRightOfAccess: boolean;
+  isOwned: boolean;
+  isWithdrawalsAllowed: boolean;
+  isBlocked: boolean;
+  isHidden: boolean;
+  isBalanceUpdatedImmediatelyOnTransferTo: boolean;
+  isDefaultPaymentAccount: boolean;
+};
+
+export type Account = {
+  key: string;
+  accountNumber: string;
+  iban: string;
+  name: string;
+  description: string;
+  balance: number;
+  availableBalance: number;
+  currencyCode: string;
+  owner: AccountOwner;
+  productType: string;
+  type: string;
+  productId: string;
+  descriptionCode: string;
+  accountProperties: AccountProperties;
+};
+
+export type AccountsResponse = {
+  accounts: Account[];
+  errors: unknown[];
+};
+
+// Transactions
 
 export type MinnaService = {
   action: string;
@@ -104,45 +160,3 @@ export type ClassifiedTransactionsParams = {
 
 /** Transactions grouped by accountKey */
 export type TransactionsByAccount = Record<string, ClassifiedTransaction[]>;
-
-export async function getClassifiedTransactions(
-  accessToken: string,
-  tokenType: string,
-  params: ClassifiedTransactionsParams,
-): Promise<ClassifiedTransactionsResponse> {
-  const query = new URLSearchParams();
-  for (const key of params.accountKeys) {
-    query.append("accountKey", key);
-  }
-  query.set("fromDate", params.fromDate);
-  query.set("toDate", params.toDate);
-  query.set("transactionSource", params.transactionSource);
-
-  const response = await fetch(`${BASE_URL}?${query.toString()}`, {
-    method: "GET",
-    headers: {
-      Accept: "application/vnd.sparebank1.v1+json; charset=utf-8",
-      Authorization: `${tokenType} ${accessToken}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch classified transactions: ${response.status} ${response.statusText}`,
-    );
-  }
-
-  return response.json() as Promise<ClassifiedTransactionsResponse>;
-}
-
-/** Groups a flat transactions array by transaction.accountKey */
-export function groupTransactionsByAccount(
-  transactions: ClassifiedTransaction[],
-): TransactionsByAccount {
-  return transactions.reduce<TransactionsByAccount>((acc, item) => {
-    const key = item.transaction.accountKey;
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(item);
-    return acc;
-  }, {});
-}

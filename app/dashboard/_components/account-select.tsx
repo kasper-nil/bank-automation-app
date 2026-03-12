@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Account, AccountsResponse } from "@/lib/api/sparebank/accounts";
+import type { Account, AccountsResponse } from "@/app/api/sparebank/types";
 
 function formatBalance(amount: number, currencyCode: string): string {
   return new Intl.NumberFormat("nb-NO", {

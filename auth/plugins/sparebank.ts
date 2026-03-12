@@ -4,8 +4,18 @@ import { sessionMiddleware } from "better-auth/api";
 import type { BetterAuthPlugin } from "better-auth";
 import { createSignedState, verifySignedState } from "@/auth/oauth-state";
 import { encryptToken, decryptToken } from "@/auth/crypto";
+import { db } from "@/db";
+import { sparebankConnection } from "@/db/auth-schema";
+import { eq } from "drizzle-orm";
 
 const SPAREBANK_TOKEN_ENDPOINT = "https://api.sparebank1.no/oauth/token";
+const REFRESH_BUFFER_MS = 5 * 60 * 1000;
+
+export type SparebankTokenResult = {
+  accessToken: string;
+  tokenType: string;
+  expiresAt: Date;
+};
 
 interface SparebankTokenResponse {
   access_token: string;
@@ -13,6 +23,70 @@ interface SparebankTokenResponse {
   expires_in: number;
   refresh_token?: string;
   state?: number;
+}
+
+export async function getSparebankToken(
+  userId: string,
+): Promise<SparebankTokenResult> {
+  const [connection] = await db
+    .select()
+    .from(sparebankConnection)
+    .where(eq(sparebankConnection.userId, userId))
+    .limit(1);
+
+  if (!connection) {
+    throw new Error("No Sparebank connection found");
+  }
+
+  const expiresAt = new Date(connection.expiresAt);
+  if (expiresAt.getTime() - REFRESH_BUFFER_MS > Date.now()) {
+    return {
+      accessToken: decryptToken(connection.accessToken),
+      tokenType: connection.tokenType,
+      expiresAt,
+    };
+  }
+
+  const refreshToken = decryptToken(connection.refreshToken);
+
+  const tokenResponse = await fetch(SPAREBANK_TOKEN_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+      client_id: process.env.NEXT_PUBLIC_SPAREBANK_CLIENT_ID!,
+      client_secret: process.env.SPAREBANK_CLIENT_SECRET!,
+    }).toString(),
+  });
+
+  if (!tokenResponse.ok) {
+    throw new Error("Failed to refresh token");
+  }
+
+  const tokens = (await tokenResponse.json()) as SparebankTokenResponse;
+  const newExpiresAt = new Date(Date.now() + tokens.expires_in * 1000);
+
+  const encryptedAccessToken = encryptToken(tokens.access_token);
+  const encryptedRefreshToken = tokens.refresh_token
+    ? encryptToken(tokens.refresh_token)
+    : connection.refreshToken;
+
+  await db
+    .update(sparebankConnection)
+    .set({
+      accessToken: encryptedAccessToken,
+      refreshToken: encryptedRefreshToken,
+      tokenType: tokens.token_type,
+      expiresAt: newExpiresAt,
+    })
+    .where(eq(sparebankConnection.userId, userId));
+
+  return {
+    accessToken: tokens.access_token,
+    tokenType: tokens.token_type,
+    expiresAt: newExpiresAt,
+  };
 }
 
 /**
@@ -244,99 +318,20 @@ export const sparebankPlugin = () => {
           const userId = session.user.id;
 
           try {
-            const adapter = ctx.context.adapter;
-            const connection = await (adapter as any).findOne({
-              model: "sparebankConnection",
-              where: [
-                {
-                  field: "userId",
-                  value: userId,
-                },
-              ],
-            });
-
-            if (!connection) {
-              return ctx.json(
-                { error: "No Sparebank connection found" },
-                { status: 404 },
-              );
-            }
-
-            // Check if token is expired (with a buffer to avoid edge cases)
-            const expiresAt = new Date(connection.expiresAt);
-            const refreshBufferMs = 5 * 60 * 1000;
-            if (expiresAt.getTime() - refreshBufferMs > Date.now()) {
-              // Token is still valid, decrypt and return
-              const accessToken = decryptToken(connection.accessToken);
-              return ctx.json({
-                accessToken,
-                tokenType: connection.tokenType,
-                expiresAt,
-              });
-            }
-
-            // Token expired, refresh it
-            const refreshToken = decryptToken(connection.refreshToken);
-
-            const tokenResponse = await fetch(SPAREBANK_TOKEN_ENDPOINT, {
-              method: "POST",
-              headers: { "Content-Type": "application/x-www-form-urlencoded" },
-              body: new URLSearchParams({
-                grant_type: "refresh_token",
-                refresh_token: refreshToken,
-                client_id: process.env.NEXT_PUBLIC_SPAREBANK_CLIENT_ID!,
-                client_secret: process.env.SPAREBANK_CLIENT_SECRET!,
-              }).toString(),
-            });
-
-            if (!tokenResponse.ok) {
-              return ctx.json(
-                { error: "Failed to refresh token" },
-                { status: 400 },
-              );
-            }
-
-            const tokens =
-              (await tokenResponse.json()) as SparebankTokenResponse;
-
-            // Calculate new expiry time
-            const newExpiresAt = new Date(
-              Date.now() + tokens.expires_in * 1000,
-            );
-
-            // Encrypt and update
-            const encryptedAccessToken = encryptToken(tokens.access_token);
-            const encryptedRefreshToken = tokens.refresh_token
-              ? encryptToken(tokens.refresh_token)
-              : connection.refreshToken;
-
-            await (adapter as any).update({
-              model: "sparebankConnection",
-              where: [
-                {
-                  field: "userId",
-                  value: userId,
-                },
-              ],
-              data: {
-                accessToken: encryptedAccessToken,
-                refreshToken: encryptedRefreshToken,
-                tokenType: tokens.token_type,
-                expiresAt: newExpiresAt,
-              },
-            });
+            const token = await getSparebankToken(userId);
 
             return ctx.json({
-              accessToken: tokens.access_token,
-              tokenType: tokens.token_type,
-              expiresAt: newExpiresAt,
+              accessToken: token.accessToken,
+              tokenType: token.tokenType,
+              expiresAt: token.expiresAt,
             });
           } catch (error) {
             console.error("Sparebank token error:", error);
-            return ctx.json(
-              { error: "Internal server error" },
-              { status: 500 },
-            );
+            const message =
+              error instanceof Error ? error.message : "Internal server error";
+            const status =
+              message === "No Sparebank connection found" ? 404 : 500;
+            return ctx.json({ error: message }, { status });
           }
         },
       ),

@@ -1,31 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import { authClient } from "@/auth/auth-client";
-import {
-  getClassifiedTransactions,
-  groupTransactionsByAccount,
-} from "@/lib/api/sparebank/transactions";
-import type { AccountsResponse } from "@/lib/api/sparebank/accounts";
+import type {
+  AccountsResponse,
+  ClassifiedTransaction,
+  TransactionsByAccount,
+} from "@/app/api/sparebank/types";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
-async function fetchSparebankTokenFromAuthClient(): Promise<string | null> {
-  try {
-    const response = await authClient.sparebankConnect.token();
-    const data = response.data;
-    if (!data || !("accessToken" in data)) {
-      return null;
-    }
-    return data.accessToken;
-  } catch (error) {
-    console.error("Failed to fetch Sparebank token:", error);
-    return null;
-  }
-}
-
 function formatDate(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+function groupTransactionsByAccount(
+  transactions: ClassifiedTransaction[],
+): TransactionsByAccount {
+  return transactions.reduce<TransactionsByAccount>((acc, item) => {
+    const key = item.transaction.accountKey;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(item);
+    return acc;
+  }, {});
 }
 
 export function FetchTransactionsButton() {
@@ -49,24 +45,32 @@ export function FetchTransactionsButton() {
         return;
       }
 
-      const accessToken = await fetchSparebankTokenFromAuthClient();
-      if (!accessToken) {
-        toast.error("No access token available. Please log in first.");
-        return;
-      }
-
       const toDate = new Date();
       const fromDate = new Date();
       fromDate.setDate(toDate.getDate() - 30);
 
-      const response = await getClassifiedTransactions(accessToken, "Bearer", {
-        accountKeys,
-        fromDate: formatDate(fromDate),
-        toDate: formatDate(toDate),
-        transactionSource: "ALL",
-      });
+      const query = new URLSearchParams();
+      for (const key of accountKeys) {
+        query.append("accountKey", key);
+      }
+      query.set("fromDate", formatDate(fromDate));
+      query.set("toDate", formatDate(toDate));
+      query.set("transactionSource", "ALL");
 
-      const grouped = groupTransactionsByAccount(response.transactions ?? []);
+      const response = await fetch(
+        `/api/sparebank/transactions?${query.toString()}`,
+      );
+
+      if (!response.ok) {
+        const data = (await response.json()) as { error?: string };
+        throw new Error(data.error || "Failed to fetch transactions.");
+      }
+
+      const data = (await response.json()) as {
+        transactions: ClassifiedTransaction[];
+      };
+
+      const grouped = groupTransactionsByAccount(data.transactions ?? []);
       localStorage.setItem("sparebank_transactions", JSON.stringify(grouped));
       toast.success("Saved to localStorage");
     } catch (err) {

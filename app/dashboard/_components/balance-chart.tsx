@@ -16,11 +16,11 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Account, AccountsResponse } from "@/lib/api/sparebank/accounts";
+import type { Account, AccountsResponse } from "@/app/api/sparebank/types";
 import type {
   ClassifiedTransaction,
   TransactionsByAccount,
-} from "@/lib/api/sparebank/transactions";
+} from "@/app/api/sparebank/types";
 
 type BalancePoint = {
   date: string; // formatted date label
